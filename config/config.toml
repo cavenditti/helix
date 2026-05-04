@@ -73,6 +73,20 @@ C-h = "tmux_or_jump_left"
 C-j = "tmux_or_jump_down"
 C-k = "tmux_or_jump_up"
 C-l = "tmux_or_jump_right"
+# Vim-like line operations
+d = ["select_current_line", "delete_selection"]
+y = ["select_current_line", "yank"]
+V = ["extend_line_below", "select_mode"]
+G = "goto_file_end"
+"(" = "goto_prev_paragraph"
+")" = "goto_next_paragraph"
+
+[keys.normal.Z]
+Z = ":write-quit"
+
+[keys.select]
+d = "delete_selection"
+y = "yank"
 
 [keys.normal.space]
 # Undo tree (our fork)
