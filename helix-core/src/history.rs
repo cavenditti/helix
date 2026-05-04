@@ -1,6 +1,7 @@
 use crate::{Assoc, ChangeSet, Range, Rope, Selection, Transaction};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};
 
@@ -322,6 +323,74 @@ impl History {
             })
             .collect()
     }
+
+    /// Serialize the history to a persistable format.
+    pub fn serialize(&self) -> SerializableHistory {
+        let now = Instant::now();
+        SerializableHistory {
+            current: self.current,
+            revisions: self
+                .revisions
+                .iter()
+                .map(|rev| {
+                    let elapsed = now.duration_since(rev.timestamp);
+                    SerializableRevision {
+                        parent: rev.parent,
+                        children: rev.children.iter().map(|c| c.get()).collect(),
+                        transaction: rev.transaction.clone(),
+                        inversion: rev.inversion.clone(),
+                        secs_ago: elapsed.as_secs(),
+                    }
+                })
+                .collect(),
+        }
+    }
+
+    /// Restore history from a serialized format.
+    pub fn deserialize(data: SerializableHistory) -> Self {
+        let now = Instant::now();
+        let revisions = data
+            .revisions
+            .into_iter()
+            .map(|rev| {
+                let timestamp = now
+                    .checked_sub(Duration::from_secs(rev.secs_ago))
+                    .unwrap_or(now);
+                Revision {
+                    parent: rev.parent,
+                    children: rev
+                        .children
+                        .into_iter()
+                        .filter_map(NonZeroUsize::new)
+                        .collect(),
+                    transaction: rev.transaction,
+                    inversion: rev.inversion,
+                    timestamp,
+                }
+            })
+            .collect();
+        History {
+            revisions,
+            current: data.current,
+        }
+    }
+}
+
+/// Serializable form of the history for disk persistence.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SerializableHistory {
+    pub current: usize,
+    pub revisions: Vec<SerializableRevision>,
+}
+
+/// Serializable form of a single revision.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SerializableRevision {
+    pub parent: usize,
+    pub children: Vec<usize>,
+    pub transaction: Transaction,
+    pub inversion: Transaction,
+    pub secs_ago: u64,
 }
 
 /// Lightweight snapshot of a single revision for UI rendering.

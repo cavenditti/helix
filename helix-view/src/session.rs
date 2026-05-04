@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::editor::Action;
 use crate::tree::{Content, Layout};
@@ -130,6 +130,9 @@ fn set_view_state(editor: &mut Editor, sv: &SessionView) {
             vertical_offset: sv.scroll_v_offset,
         },
     );
+
+    // Restore undo history
+    restore_undo_history(doc);
 }
 
 fn serialize_node(
@@ -214,6 +217,18 @@ pub fn session_file_for_cwd() -> PathBuf {
     session_dir().join(format!("{:x}.json", hasher.finish()))
 }
 
+fn undo_dir() -> PathBuf {
+    session_dir().join("undo")
+}
+
+fn undo_file_for_path(file_path: &Path) -> PathBuf {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    file_path.hash(&mut hasher);
+    undo_dir().join(format!("{:x}.json", hasher.finish()))
+}
+
 pub fn save_session(session: &Session) -> anyhow::Result<()> {
     let dir = session_dir();
     std::fs::create_dir_all(&dir)?;
@@ -221,6 +236,49 @@ pub fn save_session(session: &Session) -> anyhow::Result<()> {
     let json = serde_json::to_string_pretty(session)?;
     std::fs::write(path, json)?;
     Ok(())
+}
+
+/// Save undo history for all open documents that have file paths.
+pub fn save_undo_histories(editor: &Editor) {
+    let dir = undo_dir();
+    if std::fs::create_dir_all(&dir).is_err() {
+        log::error!("Failed to create undo directory");
+        return;
+    }
+    for doc in editor.documents() {
+        if let Some(file_path) = doc.path() {
+            let history_data = doc.serialize_history();
+            let undo_path = undo_file_for_path(file_path);
+            match serde_json::to_string(&history_data) {
+                Ok(json) => {
+                    if let Err(e) = std::fs::write(&undo_path, json) {
+                        log::error!("Failed to save undo history for {}: {}", file_path.display(), e);
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to serialize undo history for {}: {}", file_path.display(), e);
+                }
+            }
+        }
+    }
+}
+
+/// Try to restore undo history for a document from disk.
+pub fn restore_undo_history(doc: &crate::Document) {
+    if let Some(file_path) = doc.path() {
+        let undo_path = undo_file_for_path(file_path);
+        if undo_path.exists() {
+            match std::fs::read_to_string(&undo_path) {
+                Ok(json) => {
+                    match serde_json::from_str::<helix_core::history::SerializableHistory>(&json) {
+                        Ok(data) => doc.restore_history(data),
+                        Err(e) => log::warn!("Failed to parse undo history for {}: {}", file_path.display(), e),
+                    }
+                }
+                Err(e) => log::warn!("Failed to read undo history for {}: {}", file_path.display(), e),
+            }
+        }
+    }
 }
 
 pub fn load_session() -> anyhow::Result<Option<Session>> {

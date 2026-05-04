@@ -1815,6 +1815,20 @@ impl Document {
         rev
     }
 
+    /// Serialize the undo history for persistence.
+    pub fn serialize_history(&self) -> helix_core::history::SerializableHistory {
+        let history = self.history.take();
+        let data = history.serialize();
+        self.history.set(history);
+        data
+    }
+
+    /// Restore undo history from a serialized form.
+    pub fn restore_history(&self, data: helix_core::history::SerializableHistory) {
+        let history = helix_core::history::History::deserialize(data);
+        self.history.set(history);
+    }
+
     /// Commit pending changes to history
     pub fn append_changes_to_history(&mut self, view: &mut View) {
         if self.changes.is_empty() {

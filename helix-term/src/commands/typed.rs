@@ -964,12 +964,13 @@ fn quit_all_impl(cx: &mut compositor::Context, force: bool) -> anyhow::Result<()
         buffers_remaining_impl(cx.editor)?;
     }
 
-    // Auto-save session if enabled
+    // Auto-save session and undo histories if enabled
     if cx.editor.config().auto_session {
         let session = helix_view::session::Session::from_editor(cx.editor);
         if let Err(e) = helix_view::session::save_session(&session) {
             log::error!("Failed to save session: {}", e);
         }
+        helix_view::session::save_undo_histories(cx.editor);
     }
 
     // close all views

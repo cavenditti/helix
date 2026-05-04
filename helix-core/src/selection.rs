@@ -51,7 +51,7 @@ use std::{borrow::Cow, iter, slice};
 /// single grapheme inward from the range's edge.  There are a
 /// variety of helper methods on `Range` for working in terms of
 /// that block cursor, all of which have `cursor` in their name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Range {
     /// The anchor of the range: the side that doesn't move when extending.
     pub anchor: usize,
@@ -413,7 +413,7 @@ impl From<Range> for helix_stdx::Range {
 
 /// A selection consists of one or more selection ranges.
 /// invariant: A selection can never be empty (always contains at least primary range).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Selection {
     ranges: SmallVec<[Range; 1]>,
     primary_index: usize,
