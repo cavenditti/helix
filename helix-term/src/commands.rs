@@ -538,6 +538,10 @@ impl MappableCommand {
         jump_view_left, "Jump to left split",
         jump_view_up, "Jump to split above",
         jump_view_down, "Jump to split below",
+        tmux_or_jump_left, "Jump left split or tmux pane",
+        tmux_or_jump_down, "Jump down split or tmux pane",
+        tmux_or_jump_up, "Jump up split or tmux pane",
+        tmux_or_jump_right, "Jump right split or tmux pane",
         swap_view_right, "Swap with right split",
         swap_view_left, "Swap with left split",
         swap_view_up, "Swap with split above",
@@ -5859,6 +5863,43 @@ fn jump_view_up(cx: &mut Context) {
 
 fn jump_view_down(cx: &mut Context) {
     cx.editor.focus_direction(tree::Direction::Down)
+}
+
+fn tmux_select_pane(cx: &mut Context, direction: tree::Direction) {
+    if cx.editor.try_focus_direction(direction) {
+        return;
+    }
+    if !cx.editor.config().tmux_navigation {
+        return;
+    }
+    if std::env::var("TMUX").is_err() {
+        return;
+    }
+    let flag = match direction {
+        tree::Direction::Left => "-L",
+        tree::Direction::Down => "-D",
+        tree::Direction::Up => "-U",
+        tree::Direction::Right => "-R",
+    };
+    let _ = std::process::Command::new("tmux")
+        .args(["select-pane", flag])
+        .status();
+}
+
+fn tmux_or_jump_left(cx: &mut Context) {
+    tmux_select_pane(cx, tree::Direction::Left)
+}
+
+fn tmux_or_jump_down(cx: &mut Context) {
+    tmux_select_pane(cx, tree::Direction::Down)
+}
+
+fn tmux_or_jump_up(cx: &mut Context) {
+    tmux_select_pane(cx, tree::Direction::Up)
+}
+
+fn tmux_or_jump_right(cx: &mut Context) {
+    tmux_select_pane(cx, tree::Direction::Right)
 }
 
 fn swap_view_right(cx: &mut Context) {

@@ -434,6 +434,8 @@ pub struct Config {
     pub buffer_picker: BufferPickerConfig,
     /// Whether to implicitly trust every workspace or not
     pub insecure: bool,
+    /// Enable tmux pane navigation when at split edges. Defaults to false.
+    pub tmux_navigation: bool,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
@@ -1157,6 +1159,7 @@ impl Default for Config {
             kitty_keyboard_protocol: Default::default(),
             buffer_picker: BufferPickerConfig::default(),
             insecure: false,
+            tmux_navigation: false,
         }
     }
 }
@@ -2135,6 +2138,17 @@ impl Editor {
         let current_view = self.tree.focus;
         if let Some(id) = self.tree.find_split_in_direction(current_view, direction) {
             self.focus(id)
+        }
+    }
+
+    /// Like `focus_direction`, but returns whether a split was found.
+    pub fn try_focus_direction(&mut self, direction: tree::Direction) -> bool {
+        let current_view = self.tree.focus;
+        if let Some(id) = self.tree.find_split_in_direction(current_view, direction) {
+            self.focus(id);
+            true
+        } else {
+            false
         }
     }
 

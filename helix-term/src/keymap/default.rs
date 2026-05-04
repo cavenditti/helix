@@ -190,6 +190,11 @@ pub fn default() -> HashMap<Mode, KeyTrie> {
         "C-u" => page_cursor_half_up,
         "C-d" => page_cursor_half_down,
 
+        "C-h" => tmux_or_jump_left,
+        "C-j" => tmux_or_jump_down,
+        "C-k" => tmux_or_jump_up,
+        "C-l" => tmux_or_jump_right,
+
         "C-w" => { "Window"
             "C-w" | "w" => rotate_view,
             "C-s" | "s" => hsplit,
