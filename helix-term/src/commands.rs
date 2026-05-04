@@ -384,6 +384,7 @@ impl MappableCommand {
         make_search_word_bounded, "Modify current search to make it word bounded",
         global_search, "Global search in workspace folder",
         extend_line, "Select current line, if already selected, extend to another line based on the anchor",
+        select_current_line, "Select current line without extending",
         extend_line_below, "Select current line, if already selected, extend to next line",
         extend_line_above, "Select current line, if already selected, extend to previous line",
         select_line_above, "Select current line, if already selected, extend or shrink line above based on the anchor",
@@ -2827,6 +2828,19 @@ fn extend_line(cx: &mut Context) {
         Direction::Backward => Extend::Above,
     };
     extend_line_impl(cx, extend);
+}
+
+fn select_current_line(cx: &mut Context) {
+    let count = cx.count();
+    let (view, doc) = current!(cx.editor);
+    let text = doc.text();
+    let selection = doc.selection(view.id).clone().transform(|range| {
+        let (start_line, _) = range.line_range(text.slice(..));
+        let start = text.line_to_char(start_line);
+        let end = text.line_to_char((start_line + count).min(text.len_lines()));
+        Range::new(start, end)
+    });
+    doc.set_selection(view.id, selection);
 }
 
 fn extend_line_below(cx: &mut Context) {
