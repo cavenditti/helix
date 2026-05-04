@@ -232,7 +232,29 @@ impl Application {
                 editor.new_file(Action::VerticalSplit);
             }
         } else if stdin().is_terminal() || cfg!(feature = "integration") {
-            editor.new_file(Action::VerticalSplit);
+            let restored = if editor.config().auto_session {
+                match helix_view::session::load_session() {
+                    Ok(Some(session)) => {
+                        match session.restore(&mut editor) {
+                            Ok(()) => true,
+                            Err(e) => {
+                                log::warn!("Failed to restore session: {}", e);
+                                false
+                            }
+                        }
+                    }
+                    Ok(None) => false,
+                    Err(e) => {
+                        log::warn!("Failed to load session: {}", e);
+                        false
+                    }
+                }
+            } else {
+                false
+            };
+            if !restored {
+                editor.new_file(Action::VerticalSplit);
+            }
         } else {
             editor
                 .new_file_from_stdin(Action::VerticalSplit)

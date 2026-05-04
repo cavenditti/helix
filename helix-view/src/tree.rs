@@ -20,7 +20,7 @@ pub struct Tree {
 #[derive(Debug)]
 pub struct Node {
     parent: ViewId,
-    content: Content,
+    pub content: Content,
 }
 
 #[derive(Debug)]
@@ -62,8 +62,8 @@ pub enum Direction {
 
 #[derive(Debug)]
 pub struct Container {
-    layout: Layout,
-    children: Vec<ViewId>,
+    pub layout: Layout,
+    pub children: Vec<ViewId>,
     area: Rect,
 }
 
@@ -84,6 +84,14 @@ impl Default for Container {
 }
 
 impl Tree {
+    pub fn root(&self) -> ViewId {
+        self.root
+    }
+
+    pub fn node(&self, id: ViewId) -> &Node {
+        &self.nodes[id]
+    }
+
     pub fn new(area: Rect) -> Self {
         let root = Node::container(Layout::Vertical);
 

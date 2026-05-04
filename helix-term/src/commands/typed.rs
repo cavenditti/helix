@@ -964,6 +964,14 @@ fn quit_all_impl(cx: &mut compositor::Context, force: bool) -> anyhow::Result<()
         buffers_remaining_impl(cx.editor)?;
     }
 
+    // Auto-save session if enabled
+    if cx.editor.config().auto_session {
+        let session = helix_view::session::Session::from_editor(cx.editor);
+        if let Err(e) = helix_view::session::save_session(&session) {
+            log::error!("Failed to save session: {}", e);
+        }
+    }
+
     // close all views
     let views: Vec<_> = cx.editor.tree.views().map(|(view, _)| view.id).collect();
     for view_id in views {
@@ -2888,6 +2896,54 @@ pub const SHELL_COMPLETER: CommandCompleter = CommandCompleter::positional(&[
     completers::repeating_filenames,
 ]);
 
+fn session_save(
+    cx: &mut compositor::Context,
+    _args: Args,
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    if event != PromptEvent::Validate {
+        return Ok(());
+    }
+    let session = helix_view::session::Session::from_editor(cx.editor);
+    helix_view::session::save_session(&session)?;
+    cx.editor.set_status("Session saved");
+    Ok(())
+}
+
+fn session_restore(
+    cx: &mut compositor::Context,
+    _args: Args,
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    if event != PromptEvent::Validate {
+        return Ok(());
+    }
+    match helix_view::session::load_session()? {
+        Some(session) => {
+            session.restore(cx.editor)?;
+            cx.editor.set_status("Session restored");
+        }
+        None => {
+            cx.editor
+                .set_status("No session found for current directory");
+        }
+    }
+    Ok(())
+}
+
+fn session_delete(
+    cx: &mut compositor::Context,
+    _args: Args,
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    if event != PromptEvent::Validate {
+        return Ok(());
+    }
+    helix_view::session::delete_session()?;
+    cx.editor.set_status("Session deleted");
+    Ok(())
+}
+
 const WRITE_NO_FORMAT_FLAG: Flag = Flag {
     name: "no-format",
     doc: "skip auto-formatting",
@@ -3991,7 +4047,31 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         fun: untrust_workspace,
         completer: CommandCompleter::none(),
         signature: Signature { positionals: (0, None), ..Signature::DEFAULT },
-    }
+    },
+    TypableCommand {
+        name: "session-save",
+        aliases: &[],
+        doc: "Save current session state.",
+        fun: session_save,
+        completer: CommandCompleter::none(),
+        signature: Signature { positionals: (0, Some(0)), ..Signature::DEFAULT },
+    },
+    TypableCommand {
+        name: "session-restore",
+        aliases: &[],
+        doc: "Restore previously saved session.",
+        fun: session_restore,
+        completer: CommandCompleter::none(),
+        signature: Signature { positionals: (0, Some(0)), ..Signature::DEFAULT },
+    },
+    TypableCommand {
+        name: "session-delete",
+        aliases: &[],
+        doc: "Delete saved session for current directory.",
+        fun: session_delete,
+        completer: CommandCompleter::none(),
+        signature: Signature { positionals: (0, Some(0)), ..Signature::DEFAULT },
+    },
 ];
 
 pub static TYPABLE_COMMAND_MAP: Lazy<HashMap<&'static str, &'static TypableCommand>> =

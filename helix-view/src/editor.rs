@@ -436,6 +436,8 @@ pub struct Config {
     pub insecure: bool,
     /// Enable tmux pane navigation when at split edges. Defaults to false.
     pub tmux_navigation: bool,
+    /// Automatically save and restore sessions. Defaults to false.
+    pub auto_session: bool,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
@@ -1160,6 +1162,7 @@ impl Default for Config {
             buffer_picker: BufferPickerConfig::default(),
             insecure: false,
             tmux_navigation: false,
+            auto_session: false,
         }
     }
 }
