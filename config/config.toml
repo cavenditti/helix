@@ -1,0 +1,79 @@
+theme = "catppuccin_macchiato_custom"
+
+[editor]
+line-number = "absolute"
+cursorline = true
+mouse = true
+auto-format = true
+auto-completion = true
+idle-timeout = 250
+completion-trigger-len = 2
+bufferline = "never"
+color-modes = true
+true-color = true
+rainbow-brackets = true
+trim-trailing-whitespace = true
+insert-final-newline = true
+popup-border = "all"
+scrolloff = 8
+# Custom features from our fork
+tmux-navigation = true
+auto-session = true
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.indent-guides]
+render = true
+character = "|"
+skip-levels = 1
+
+[editor.gutters]
+layout = ["diagnostics", "spacer", "line-numbers", "spacer", "diff"]
+
+[editor.statusline]
+left = ["mode", "spinner", "file-name", "read-only-indicator", "file-modification-indicator"]
+center = []
+right = ["diagnostics", "selections", "register", "position", "file-encoding", "file-line-ending", "file-type", "version-control"]
+separator = "|"
+mode.normal = "NORMAL"
+mode.insert = "INSERT"
+mode.select = "SELECT"
+
+[editor.lsp]
+display-messages = true
+display-inlay-hints = false
+auto-signature-help = true
+display-signature-help-docs = true
+snippets = true
+
+[editor.file-picker]
+hidden = true
+
+[editor.search]
+smart-case = true
+wrap-around = true
+
+[editor.soft-wrap]
+enable = false
+
+[editor.auto-save]
+focus-lost = true
+after-delay.enable = false
+
+[editor.inline-diagnostics]
+cursor-line = "hint"
+other-lines = "disable"
+
+[keys.normal]
+# Tmux-aware navigation (handled by our fork's tmux_or_jump commands)
+C-h = "tmux_or_jump_left"
+C-j = "tmux_or_jump_down"
+C-k = "tmux_or_jump_up"
+C-l = "tmux_or_jump_right"
+
+[keys.normal.space]
+# Undo tree (our fork)
+u = "undo_tree"

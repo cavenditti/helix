@@ -1,0 +1,71 @@
+# Rust - enable clippy checks via rust-analyzer
+[language-server.rust-analyzer.config]
+check.command = "clippy"
+
+# Python - use pyright + ruff
+[[language]]
+name = "python"
+language-servers = ["pyright", "ruff"]
+auto-format = true
+
+[language-server.pyright.config.python.analysis]
+typeCheckingMode = "basic"
+
+[language-server.ruff]
+command = "ruff"
+args = ["server"]
+
+# TypeScript
+[[language]]
+name = "typescript"
+auto-format = true
+
+[[language]]
+name = "tsx"
+auto-format = true
+
+# JavaScript
+[[language]]
+name = "javascript"
+auto-format = true
+
+[[language]]
+name = "jsx"
+auto-format = true
+
+# Tailwind CSS language server (additional server for relevant file types)
+[language-server.tailwindcss-ls]
+command = "tailwindcss-language-server"
+args = ["--stdio"]
+
+# JSON
+[[language]]
+name = "json"
+auto-format = true
+formatter = { command = "prettier", args = ["--stdin-filepath", "file.json"] }
+
+# YAML
+[[language]]
+name = "yaml"
+auto-format = true
+
+# TOML
+[[language]]
+name = "toml"
+auto-format = true
+
+# Markdown
+[[language]]
+name = "markdown"
+auto-format = true
+
+# Docker
+[[language]]
+name = "dockerfile"
+auto-format = true
+
+# Lua
+[[language]]
+name = "lua"
+auto-format = true
+formatter = { command = "stylua", args = ["-"] }

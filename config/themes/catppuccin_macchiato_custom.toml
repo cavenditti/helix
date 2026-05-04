@@ -1,0 +1,24 @@
+inherits = "catppuccin_macchiato"
+
+# Custom color overrides matching Neovim config
+[palette]
+blue = "#00BFFF"
+lavender = "#00BBCC"
+sky = "#61BDFF"
+
+# UI overrides
+"ui.cursor.match" = { bg = "#61BDFF", fg = "#181926" }
+"ui.cursorline.primary" = { bg = "#363a4f" }
+"ui.linenr.selected" = { fg = "#00BFFF", modifiers = ["bold"] }
+"ui.window" = { fg = "#6e738d", modifiers = ["bold"] }
+
+# Search highlight
+"ui.highlight" = { bg = "#61BDFF", fg = "#181926" }
+
+# Rainbow bracket colors (matching Neovim config)
+"rainbow.scope.1" = "#FF757F"
+"rainbow.scope.2" = "#FF966C"
+"rainbow.scope.3" = "#FFC777"
+"rainbow.scope.4" = "#C3E88D"
+"rainbow.scope.5" = "#61BDFF"
+"rainbow.scope.6" = "#C099FF"
