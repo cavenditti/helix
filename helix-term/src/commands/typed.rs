@@ -106,6 +106,16 @@ fn force_exit(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> a
     quit(cx, Args::default(), event)
 }
 
+fn save_session_if_last_view(cx: &mut compositor::Context) {
+    if cx.editor.config().auto_session && cx.editor.tree.views().count() == 1 {
+        let session = helix_view::session::Session::from_editor(cx.editor);
+        if let Err(e) = helix_view::session::save_session(&session) {
+            log::error!("Failed to save session: {}", e);
+        }
+        helix_view::session::save_undo_histories(cx.editor);
+    }
+}
+
 fn quit(cx: &mut compositor::Context, _args: Args, event: PromptEvent) -> anyhow::Result<()> {
     log::debug!("quitting...");
 
@@ -119,6 +129,7 @@ fn quit(cx: &mut compositor::Context, _args: Args, event: PromptEvent) -> anyhow
     }
 
     cx.block_try_flush_writes()?;
+    save_session_if_last_view(cx);
     cx.editor.close(view!(cx.editor).id);
 
     Ok(())
@@ -130,6 +141,7 @@ fn force_quit(cx: &mut compositor::Context, _args: Args, event: PromptEvent) -> 
     }
 
     cx.block_try_flush_writes()?;
+    save_session_if_last_view(cx);
     cx.editor.close(view!(cx.editor).id);
 
     Ok(())
@@ -2907,6 +2919,7 @@ fn session_save(
     }
     let session = helix_view::session::Session::from_editor(cx.editor);
     helix_view::session::save_session(&session)?;
+    helix_view::session::save_undo_histories(cx.editor);
     cx.editor.set_status("Session saved");
     Ok(())
 }

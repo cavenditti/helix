@@ -239,11 +239,18 @@ pub fn save_session(session: &Session) -> anyhow::Result<()> {
 }
 
 /// Save undo history for all open documents that have file paths.
-pub fn save_undo_histories(editor: &Editor) {
+pub fn save_undo_histories(editor: &mut Editor) {
     let dir = undo_dir();
     if std::fs::create_dir_all(&dir).is_err() {
         log::error!("Failed to create undo directory");
         return;
+    }
+    // Flush pending changes to history for all views before saving
+    let view_ids: Vec<_> = editor.tree.views().map(|(v, _)| v.id).collect();
+    for view_id in view_ids {
+        let view = editor.tree.get_mut(view_id);
+        let doc = editor.documents.get_mut(&view.doc).unwrap();
+        doc.append_changes_to_history(view);
     }
     for doc in editor.documents() {
         if let Some(file_path) = doc.path() {
