@@ -131,8 +131,12 @@ impl Component for UndoTreeView {
         let selected_style = theme.get("ui.selection");
         let cursor_style = theme.get("ui.cursor.primary");
 
-        // Draw background
-        surface.set_style(area, popup_style);
+        // Clear entire area by filling with spaces to prevent bleed-through
+        for y in area.y..area.y + area.height {
+            for x in area.x..area.x + area.width {
+                surface.set_stringn(x, y, " ", 1, popup_style);
+            }
+        }
 
         // Draw border
         let block = Block::default()
@@ -175,11 +179,20 @@ impl Component for UndoTreeView {
             };
 
             let display_width = inner.width as usize;
-            let truncated: String = line.text.chars().take(display_width).collect();
+            // Fill entire line with the style first to avoid bleed-through
+            let padded: String = {
+                let truncated: String = line.text.chars().take(display_width).collect();
+                let char_count = truncated.chars().count();
+                if char_count < display_width {
+                    format!("{}{}", truncated, " ".repeat(display_width - char_count))
+                } else {
+                    truncated
+                }
+            };
             surface.set_stringn(
                 inner.x,
                 y,
-                &truncated,
+                &padded,
                 display_width,
                 style,
             );
