@@ -1782,6 +1782,39 @@ impl Document {
         self.earlier_later_impl(view, uk, false)
     }
 
+    /// Jump to a specific history revision by index.
+    pub fn jump_to_revision(&mut self, view: &mut View, revision: usize) -> bool {
+        self.append_changes_to_history(view);
+        let txns = self.history.get_mut().jump_to(revision);
+        let mut success = false;
+        for txn in txns {
+            if self.apply_impl(&txn, view.id, true) {
+                success = true;
+            }
+        }
+        if success {
+            self.changes = ChangeSet::new(self.text().slice(..));
+            view.sync_changes(self);
+        }
+        success
+    }
+
+    /// Get a snapshot of the history tree for UI rendering.
+    pub fn history_tree_snapshot(&self) -> Vec<helix_core::history::RevisionInfo> {
+        let history = self.history.take();
+        let snapshot = history.tree_snapshot();
+        self.history.set(history);
+        snapshot
+    }
+
+    /// Get the current revision index.
+    pub fn current_revision(&self) -> usize {
+        let history = self.history.take();
+        let rev = history.current_revision();
+        self.history.set(history);
+        rev
+    }
+
     /// Commit pending changes to history
     pub fn append_changes_to_history(&mut self, view: &mut View) {
         if self.changes.is_empty() {

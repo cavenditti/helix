@@ -57,7 +57,7 @@ pub struct History {
 #[derive(Debug, Clone)]
 struct Revision {
     parent: usize,
-    last_child: Option<NonZeroUsize>,
+    children: Vec<NonZeroUsize>,
     transaction: Transaction,
     // We need an inversion for undos because delete transactions don't store
     // the deleted text.
@@ -71,7 +71,7 @@ impl Default for History {
         Self {
             revisions: vec![Revision {
                 parent: 0,
-                last_child: None,
+                children: Vec::new(),
                 transaction: Transaction::from(ChangeSet::new("".into())),
                 inversion: Transaction::from(ChangeSet::new("".into())),
                 timestamp: Instant::now(),
@@ -98,10 +98,12 @@ impl History {
             .with_selection(original.selection.clone());
 
         let new_current = self.revisions.len();
-        self.revisions[self.current].last_child = NonZeroUsize::new(new_current);
+        self.revisions[self.current]
+            .children
+            .push(NonZeroUsize::new(new_current).unwrap());
         self.revisions.push(Revision {
             parent: self.current,
-            last_child: None,
+            children: Vec::new(),
             transaction: transaction.clone(),
             inversion,
             timestamp,
@@ -148,7 +150,7 @@ impl History {
     /// Redo the last edit.
     pub fn redo(&mut self) -> Option<&Transaction> {
         let current_revision = &self.revisions[self.current];
-        let last_child = current_revision.last_child?;
+        let last_child = current_revision.children.last().copied()?;
         self.current = last_child.get();
 
         Some(&self.revisions[last_child.get()].transaction)
@@ -210,7 +212,7 @@ impl History {
     }
 
     /// Create a [`Transaction`] that will jump to a specific revision in the history.
-    fn jump_to(&mut self, to: usize) -> Vec<Transaction> {
+    pub fn jump_to(&mut self, to: usize) -> Vec<Transaction> {
         let lca = self.lowest_common_ancestor(self.current, to);
         let up = self.path_up(self.current, lca);
         let down = self.path_up(to, lca);
@@ -300,6 +302,36 @@ impl History {
             TimePeriod(d) => self.jump_duration_forward(d),
         }
     }
+
+    /// Number of revisions in the history.
+    pub fn revision_count(&self) -> usize {
+        self.revisions.len()
+    }
+
+    /// Returns a snapshot of the entire revision tree for UI rendering.
+    pub fn tree_snapshot(&self) -> Vec<RevisionInfo> {
+        self.revisions
+            .iter()
+            .enumerate()
+            .map(|(i, rev)| RevisionInfo {
+                index: i,
+                parent: rev.parent,
+                children: rev.children.iter().map(|c| c.get()).collect(),
+                timestamp: rev.timestamp,
+                is_current: i == self.current,
+            })
+            .collect()
+    }
+}
+
+/// Lightweight snapshot of a single revision for UI rendering.
+#[derive(Debug, Clone)]
+pub struct RevisionInfo {
+    pub index: usize,
+    pub parent: usize,
+    pub children: Vec<usize>,
+    pub timestamp: Instant,
+    pub is_current: bool,
 }
 
 /// Whether to undo by a number of edits or a duration of time.

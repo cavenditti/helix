@@ -488,6 +488,7 @@ impl MappableCommand {
         earlier, "Move backward in history",
         later, "Move forward in history",
         commit_undo_checkpoint, "Commit changes to new checkpoint",
+        undo_tree, "Open undo tree visualization",
         yank, "Yank selection",
         yank_to_clipboard, "Yank selections to clipboard",
         yank_to_primary_clipboard, "Yank selections to primary clipboard",
@@ -4762,6 +4763,15 @@ fn later(cx: &mut Context) {
 fn commit_undo_checkpoint(cx: &mut Context) {
     let (view, doc) = current!(cx.editor);
     doc.append_changes_to_history(view);
+}
+
+fn undo_tree(cx: &mut Context) {
+    let (view, doc) = current!(cx.editor);
+    doc.append_changes_to_history(view);
+    let snapshot = doc.history_tree_snapshot();
+    let current_rev = doc.current_revision();
+    let tree_view = ui::undotree::UndoTreeView::new(snapshot, current_rev);
+    cx.push_layer(Box::new(overlaid(tree_view)));
 }
 
 // Yank / Paste
