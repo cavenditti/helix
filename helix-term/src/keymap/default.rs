@@ -35,6 +35,19 @@ pub fn default() -> HashMap<Mode, KeyTrie> {
         "E" => move_next_long_word_end,
 
         "v" => select_mode,
+        "V" => { "Linewise select" sticky=true
+            "j" | "down" => extend_line_below,
+            "k" | "up" => extend_line_above,
+            "d" => [extend_to_line_bounds, delete_selection, normal_mode],
+            "y" => [extend_to_line_bounds, yank, collapse_selection, normal_mode],
+            "c" => [extend_to_line_bounds, change_selection],
+            ">" => indent,
+            "<" => unindent,
+            "J" => join_selections,
+            "p" => paste_after,
+            "P" => paste_before,
+            "esc" => [collapse_selection, normal_mode],
+        },
         "G" => goto_line,
         "g" => { "Goto"
             "g" => goto_file_start,

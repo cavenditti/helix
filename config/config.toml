@@ -76,7 +76,7 @@ C-l = "tmux_or_jump_right"
 # Vim-like line operations
 d = ["select_current_line", "delete_selection"]
 y = ["select_current_line", "yank"]
-V = ["extend_line_below", "select_mode"]
+# V is handled by sticky "Linewise select" submode in default keymap
 G = "goto_file_end"
 "(" = "goto_prev_paragraph"
 ")" = "goto_next_paragraph"

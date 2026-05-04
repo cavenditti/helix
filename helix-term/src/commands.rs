@@ -426,6 +426,7 @@ impl MappableCommand {
         open_below, "Open new line below selection",
         open_above, "Open new line above selection",
         normal_mode, "Enter normal mode",
+        linewise_select_mode, "Select current line and enter linewise selection mode",
         select_mode, "Enter selection extend mode",
         exit_select_mode, "Exit selection mode",
         goto_definition, "Goto definition",
@@ -4080,6 +4081,12 @@ fn goto_last_modified_file(cx: &mut Context) {
     } else {
         cx.editor.set_error("no last modified buffer")
     }
+}
+
+fn linewise_select_mode(cx: &mut Context) {
+    // Select the current line (visual feedback) but stay in normal mode
+    // so the sticky "Linewise select" submode handles subsequent keys.
+    select_current_line(cx);
 }
 
 fn select_mode(cx: &mut Context) {
