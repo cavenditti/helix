@@ -336,12 +336,18 @@ impl View {
     }
 
     pub fn ensure_cursor_in_view(&self, doc: &mut Document, scrolloff: usize) {
+        if self.area.width == 0 || self.area.height == 0 {
+            return;
+        }
         if let Some(offset) = self.offset_coords_to_in_view_center::<false>(doc, scrolloff) {
             doc.set_view_offset(self.id, offset);
         }
     }
 
     pub fn ensure_cursor_in_view_center(&self, doc: &mut Document, scrolloff: usize) {
+        if self.area.width == 0 || self.area.height == 0 {
+            return;
+        }
         if let Some(offset) = self.offset_coords_to_in_view_center::<true>(doc, scrolloff) {
             doc.set_view_offset(self.id, offset);
         } else {

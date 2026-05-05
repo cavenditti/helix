@@ -202,15 +202,23 @@ impl Application {
                         // NOTE: this isn't necessarily true anymore. If
                         // `--vsplit` or `--hsplit` are used, the file which is
                         // opened last is focused on.
-                        let view_id = editor.tree.focus;
-                        let doc = doc_mut!(editor, &doc_id);
-                        let selection = pos
-                            .into_iter()
-                            .map(|coords| {
-                                Range::point(pos_at_coords(doc.text().slice(..), coords, true))
-                            })
-                            .collect();
-                        doc.set_selection(view_id, selection);
+                        //
+                        // Only override the selection when an explicit position
+                        // was given (file:row:col). When auto_session is enabled
+                        // and no position was specified, restore_file_state
+                        // (called inside editor.open) already set the cursor.
+                        let has_explicit_pos = pos.iter().any(|p| p.row != 0 || p.col != 0);
+                        if has_explicit_pos || !editor.config().auto_session {
+                            let view_id = editor.tree.focus;
+                            let doc = doc_mut!(editor, &doc_id);
+                            let selection = pos
+                                .into_iter()
+                                .map(|coords| {
+                                    Range::point(pos_at_coords(doc.text().slice(..), coords, true))
+                                })
+                                .collect();
+                            doc.set_selection(view_id, selection);
+                        }
                     }
                 }
 
@@ -224,9 +232,12 @@ impl Application {
                         if nr_of_files == 1 { "" } else { "s" } // avoid "Loaded 1 files." grammo
                     ));
                     // align the view to center after all files are loaded,
-                    // does not affect views without pos since it is at the top
-                    let (view, doc) = current!(editor);
-                    align_view(doc, view, Align::Center);
+                    // does not affect views without pos since it is at the top.
+                    // Skip when auto_session restored the viewport position.
+                    if !editor.config().auto_session {
+                        let (view, doc) = current!(editor);
+                        align_view(doc, view, Align::Center);
+                    }
                 }
             } else {
                 editor.new_file(Action::VerticalSplit);
