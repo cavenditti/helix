@@ -211,9 +211,11 @@ pub fn session_dir() -> PathBuf {
 pub fn session_file_for_cwd() -> PathBuf {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
-    let cwd = helix_stdx::env::current_working_dir();
+    // Use workspace root (finds .git/.svn/.jj/.helix) instead of raw CWD
+    // so sessions work regardless of which subdirectory you open hx from.
+    let (workspace, _) = helix_loader::find_workspace();
     let mut hasher = DefaultHasher::new();
-    cwd.hash(&mut hasher);
+    workspace.hash(&mut hasher);
     session_dir().join(format!("{:x}.json", hasher.finish()))
 }
 
