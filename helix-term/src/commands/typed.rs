@@ -112,7 +112,7 @@ fn save_session_if_last_view(cx: &mut compositor::Context) {
         if let Err(e) = helix_view::session::save_session(&session) {
             log::error!("Failed to save session: {}", e);
         }
-        helix_view::session::save_undo_histories(cx.editor);
+        helix_view::session::save_file_states(cx.editor);
     }
 }
 
@@ -982,7 +982,7 @@ fn quit_all_impl(cx: &mut compositor::Context, force: bool) -> anyhow::Result<()
         if let Err(e) = helix_view::session::save_session(&session) {
             log::error!("Failed to save session: {}", e);
         }
-        helix_view::session::save_undo_histories(cx.editor);
+        helix_view::session::save_file_states(cx.editor);
     }
 
     // close all views
@@ -2919,7 +2919,7 @@ fn session_save(
     }
     let session = helix_view::session::Session::from_editor(cx.editor);
     helix_view::session::save_session(&session)?;
-    helix_view::session::save_undo_histories(cx.editor);
+    helix_view::session::save_file_states(cx.editor);
     cx.editor.set_status("Session saved");
     Ok(())
 }

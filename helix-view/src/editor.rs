@@ -1969,6 +1969,11 @@ impl Editor {
 
         self.switch(id, action);
 
+        // Restore per-file state (cursor, scroll, undo history) if available
+        if self.config().auto_session {
+            crate::session::restore_file_state(self);
+        }
+
         Ok(id)
     }
 

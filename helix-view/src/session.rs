@@ -108,31 +108,10 @@ impl Session {
     }
 }
 
-fn set_view_state(editor: &mut Editor, sv: &SessionView) {
-    let (view, doc) = current!(editor);
-    let view_id = view.id;
-    let text = doc.text().clone();
-
-    // Restore cursor position (clamped to document length)
-    let text_len = text.len_chars();
-    let anchor = sv.anchor.min(text_len.saturating_sub(1));
-    let head = sv.head.min(text_len.saturating_sub(1));
-    let selection = helix_core::Selection::single(anchor, head);
-    doc.set_selection(view_id, selection);
-
-    // Restore scroll position
-    let scroll_anchor = sv.scroll_anchor.min(text_len.saturating_sub(1));
-    doc.set_view_offset(
-        view_id,
-        crate::view::ViewPosition {
-            anchor: scroll_anchor,
-            horizontal_offset: sv.scroll_h_offset,
-            vertical_offset: sv.scroll_v_offset,
-        },
-    );
-
-    // Restore undo history
-    restore_undo_history(doc);
+fn set_view_state(editor: &mut Editor, _sv: &SessionView) {
+    // Per-file state (cursor, scroll, undo) is now restored via restore_file_state
+    // which is called automatically after every file open.
+    restore_file_state(editor);
 }
 
 fn serialize_node(
@@ -219,16 +198,28 @@ pub fn session_file_for_cwd() -> PathBuf {
     session_dir().join(format!("{:x}.json", hasher.finish()))
 }
 
-fn undo_dir() -> PathBuf {
-    session_dir().join("undo")
+fn file_state_dir() -> PathBuf {
+    helix_loader::data_dir().join("file_state")
 }
 
-fn undo_file_for_path(file_path: &Path) -> PathBuf {
+fn file_state_path_for(file_path: &Path) -> PathBuf {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
     let mut hasher = DefaultHasher::new();
     file_path.hash(&mut hasher);
-    undo_dir().join(format!("{:x}.json", hasher.finish()))
+    file_state_dir().join(format!("{:x}.json", hasher.finish()))
+}
+
+/// Per-file persisted state: cursor, scroll position, and undo history.
+#[derive(Serialize, Deserialize)]
+pub struct FileState {
+    pub path: PathBuf,
+    pub anchor: usize,
+    pub head: usize,
+    pub scroll_anchor: usize,
+    pub scroll_v_offset: usize,
+    pub scroll_h_offset: usize,
+    pub history: Option<helix_core::history::SerializableHistory>,
 }
 
 pub fn save_session(session: &Session) -> anyhow::Result<()> {
@@ -240,11 +231,11 @@ pub fn save_session(session: &Session) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Save undo history for all open documents that have file paths.
-pub fn save_undo_histories(editor: &mut Editor) {
-    let dir = undo_dir();
+/// Save per-file state (cursor, scroll, undo history) for all open documents.
+pub fn save_file_states(editor: &mut Editor) {
+    let dir = file_state_dir();
     if std::fs::create_dir_all(&dir).is_err() {
-        log::error!("Failed to create undo directory");
+        log::error!("Failed to create file state directory");
         return;
     }
     // Flush pending changes to history for all views before saving
@@ -254,39 +245,89 @@ pub fn save_undo_histories(editor: &mut Editor) {
         let doc = editor.documents.get_mut(&view.doc).unwrap();
         doc.append_changes_to_history(view);
     }
-    for doc in editor.documents() {
+    // Save state for each document
+    for (view, _is_focused) in editor.tree.views() {
+        let doc = &editor.documents[&view.doc];
         if let Some(file_path) = doc.path() {
-            let history_data = doc.serialize_history();
-            let undo_path = undo_file_for_path(file_path);
-            match serde_json::to_string(&history_data) {
+            let sel = doc.selection(view.id).primary();
+            let vp = doc.view_offset(view.id);
+            let state = FileState {
+                path: file_path.clone(),
+                anchor: sel.anchor,
+                head: sel.head,
+                scroll_anchor: vp.anchor,
+                scroll_v_offset: vp.vertical_offset,
+                scroll_h_offset: vp.horizontal_offset,
+                history: Some(doc.serialize_history()),
+            };
+            let state_path = file_state_path_for(file_path);
+            match serde_json::to_string(&state) {
                 Ok(json) => {
-                    if let Err(e) = std::fs::write(&undo_path, json) {
-                        log::error!("Failed to save undo history for {}: {}", file_path.display(), e);
+                    if let Err(e) = std::fs::write(&state_path, json) {
+                        log::error!("Failed to save file state for {}: {}", file_path.display(), e);
                     }
                 }
                 Err(e) => {
-                    log::error!("Failed to serialize undo history for {}: {}", file_path.display(), e);
+                    log::error!("Failed to serialize file state for {}: {}", file_path.display(), e);
                 }
             }
         }
     }
 }
 
-/// Try to restore undo history for a document from disk.
-pub fn restore_undo_history(doc: &crate::Document) {
-    if let Some(file_path) = doc.path() {
-        let undo_path = undo_file_for_path(file_path);
-        if undo_path.exists() {
-            match std::fs::read_to_string(&undo_path) {
-                Ok(json) => {
-                    match serde_json::from_str::<helix_core::history::SerializableHistory>(&json) {
-                        Ok(data) => doc.restore_history(data),
-                        Err(e) => log::warn!("Failed to parse undo history for {}: {}", file_path.display(), e),
-                    }
-                }
-                Err(e) => log::warn!("Failed to read undo history for {}: {}", file_path.display(), e),
-            }
+/// Restore per-file state (cursor, scroll, undo history) for a document.
+/// Called whenever a file is opened, regardless of session restore.
+pub fn restore_file_state(editor: &mut Editor) {
+    let (view, doc) = crate::current!(editor);
+    let view_id = view.id;
+
+    let file_path = match doc.path() {
+        Some(p) => p.clone(),
+        None => return,
+    };
+
+    let state_path = file_state_path_for(&file_path);
+    if !state_path.exists() {
+        return;
+    }
+
+    let json = match std::fs::read_to_string(&state_path) {
+        Ok(j) => j,
+        Err(e) => {
+            log::warn!("Failed to read file state for {}: {}", file_path.display(), e);
+            return;
         }
+    };
+
+    let state: FileState = match serde_json::from_str(&json) {
+        Ok(s) => s,
+        Err(e) => {
+            log::warn!("Failed to parse file state for {}: {}", file_path.display(), e);
+            return;
+        }
+    };
+
+    // Restore cursor (clamped to document length)
+    let text_len = doc.text().len_chars();
+    let anchor = state.anchor.min(text_len.saturating_sub(1));
+    let head = state.head.min(text_len.saturating_sub(1));
+    let selection = helix_core::Selection::single(anchor, head);
+    doc.set_selection(view_id, selection);
+
+    // Restore scroll position
+    let scroll_anchor = state.scroll_anchor.min(text_len.saturating_sub(1));
+    doc.set_view_offset(
+        view_id,
+        crate::view::ViewPosition {
+            anchor: scroll_anchor,
+            horizontal_offset: state.scroll_h_offset,
+            vertical_offset: state.scroll_v_offset,
+        },
+    );
+
+    // Restore undo history
+    if let Some(history_data) = state.history {
+        doc.restore_history(history_data);
     }
 }
 
